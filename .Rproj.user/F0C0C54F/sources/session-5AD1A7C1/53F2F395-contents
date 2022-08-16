@@ -1,0 +1,155 @@
+---
+title: "Lobster Exploration"
+author: "Ruth Enriquez"
+date: "2022-08-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(janitor)
+```
+
+Read in and take a look at the data in the `data/Lobster_Abundance_All_Years_20210412.csv` file. Take note of values that can be considered `NA` (see metadata) and update your import line to convert those to `NA` values
+
+-   Convert column names to lower snake case
+
+-   Convert the data from *frequency* to *case* format using `dplyr::uncount()` on the existing `count` column. **What did this do?** Add annotation in your code explaining `dplyr::uncount()`
+
+```{r}
+lobsters <- read_csv(here("data","Lobster_Abundance_All_Years_20210412.csv"), na = c("-99999", "")) %>% 
+  clean_names() %>%
+  uncount(count)
+```
+
+### **Find counts and mean sizes by site & year**
+
+-   Create a summary table that finds the total counts (see: `n()`), and mean carapace lengths of lobsters observed in the dataset by **site** and **year**.
+
+```{r}
+lobsters_totals <- lobsters |> 
+  group_by(site, year) |> 
+  summarize(total_count = n(),
+            mean_length = mean(size_mm , na.rm = TRUE), .groups = "drop")
+```
+
+-   Create a ggplot graph of the number of total lobsters observed (y-axis) by year (x-axis) in the study, grouped (either aesthetically or by faceting) by site
+
+```{r}
+ggplot(data = lobsters_totals, aes(x = year, y = total_count)) +
+  geom_line(aes(color = site)) +
+  facet_wrap(~site)
+```
+
+### **Find the proportion of legal lobsters at each site for 2020**
+
+The legal lobster size (carapace length) in California is 79.76 mm.
+
+-   Create a subset that only contains lobster data from 2020 (note: this should be from the original data you read in, not the summary table you created above)
+-   Write code (you can decide how to do this - there are a number of ways) to find the counts of lobsters observed at each site (only using site as the grouping factor) that are above and below the legal limit. **Hint:** You may want to add a new column `legal` that contains "yes" or "no" based on the size of the observed lobster (see `dplyr::case_when()` for a really nice way to do this), then use `group_by() %>% summarize(n())` or `dplyr::count()` to get counts by group within variables
+
+```{r}
+legal_lobster_2020 <- lobsters |> 
+  filter(year %in% 2020) |> 
+  mutate(legal = ifelse(size_mm >= 79.76, "yes","no")) |> 
+  group_by(site) %>%
+  dplyr::count(legal) |> 
+  rename(legal_count = n)
+```
+
+```{r}
+legal_lobster_2020a <- lobsters |> 
+  filter(year %in% 2020) |> 
+  mutate(legal = ifelse(size_mm >= 79.76, "yes","no")) |> 
+  group_by(site, legal) %>%
+  summarize(legal_count = n())
+```
+
+-   Create a stacked column graph that shows the *proportion* of legal and non-legal lobsters at each site. \*\*Hint: create a stacked column graph with `geom_col()`, then add the argument `position = "fill"` to convert from a graph of absolute counts to proportions.
+
+```{r}
+ggplot(data = legal_lobster_2020, aes(x = site,
+                                      y = legal_count)) +
+  geom_col(position = "fill",
+           aes(fill = legal))
+```
+
+## **Task 3: Random lobster wrangling**
+
+Starting with the original lobsters data that you read in as `lobsters`, complete the following (separately - these are not expected to be done in sequence or anything). You can store each of the outputs as `ex_a`, `ex_b`, etc. for the purposes of this task.
+
+### **filter() practice**
+
+1.  Create and store a subset that only contains lobsters from sites "IVEE", "CARP" and "NAPL". Check your output data frame to ensure that only those three sites exist.
+
+```{r}
+ex_1 <- lobsters |> 
+   filter(site %in% c("IVEE", "CARP", "NAPL"))
+```
+
+2.  Create a subset that only contains lobsters observed in August.
+
+```{r}
+ex_2 <- lobsters |> 
+  filter(month %in% 8)
+```
+
+3.  Create a subset with lobsters at Arroyo Quemado (AQUE) **OR** with a carapace length greater than 70 mm.
+
+```{r}
+ex_3 <- lobsters |> 
+  filter(site %in% "AQUE" | size_mm > 70)
+```
+
+4.  Create a subset that does NOT include observations from Naples Reef (NAPL)
+
+```{r}
+ex_4 <- lobsters |> 
+  filter(site != "NAPL")
+```
+
+### **group_by() %\>% summarize() practice**
+
+5.  Find the mean and standard deviation of lobster carapace length, grouped by site.
+
+```{r}
+ex_5 <- lobsters |> 
+  group_by(site) |> 
+  summarize(mean_length = mean(size_mm, na.rm = TRUE),
+            sd_length = sd(size_mm, na.rm = TRUE))
+```
+
+6.  Find the maximum carapace length by site and month.
+
+```{r}
+ex_6 <- lobsters |> 
+  group_by(site, month) |> 
+  summarize(max_length = max(size_mm, na.rm = TRUE))
+```
+
+### **mutate() practice**
+
+7.  Add a new column that contains lobster carapace length converted to centimeters. Check output.
+
+```{r}
+ex_7 <- lobsters |> 
+  mutate(size_cm = size_mm / 100) |> 
+  relocate(size_cm, .after = size_mm)
+```
+
+8.  Update the site column to all lowercase. Check output.
+
+```{r}
+ex_8 <- lobsters |> 
+  mutate(site = tolower(site))
+```
+
+9.  Convert the area column to a character (not sure why you\'d want to do this, but try it anyway). Check output.
+
+```{r}
+ex_24 <- lobsters |> 
+  mutate(area = as.character(area))
+```
+
